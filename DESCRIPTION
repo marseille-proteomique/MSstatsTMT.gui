@@ -16,6 +16,6 @@ Depends:
 Imports: ggplot2, matlab, stringr, tidyverse, MSstats, MSstatsTMT, stats,
    grid, gridExtra, ggpubr, gghighlight, grDevices, graphics, RColorBrewer, 
    shiny, shinydashboard, shinycssloaders, shinybusy, DT, shinyMatrix, rio,
-   dplyr, reshape2
+   dplyr, reshape2, shinyjs
    
 
