@@ -31,6 +31,7 @@
 #' @import graphics
 #' @import RColorBrewer
 #' @import shinybusy
+#' @import shinyjs
 #' @import DT
 #' @import shinyMatrix
 #' @import reshape2
