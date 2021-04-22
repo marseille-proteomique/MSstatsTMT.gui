@@ -13,7 +13,9 @@ library(shinybusy)
 library(gghighlight)
 library(ggpubr)
 
+#increase the max request size for uploading files
 options(shiny.maxRequestSize = 1000*1024^2)
+#set options for the spinner when things are loading
 options(spinner.color = "#518CE2", spinner.color.background = "000000", spinner.size = 2)
 
 ui <- dashboardPage(skin = "blue",
@@ -193,6 +195,7 @@ ui <- dashboardPage(skin = "blue",
                                          column(5, uiOutput("batch_matui"))
                                          ),
 
+                                #check if files are well uploaded
                                 conditionalPanel(condition = "output.eviA_fileup",
                                                  actionButton("but_anno", "Create your annotation file")),
 
@@ -205,6 +208,7 @@ ui <- dashboardPage(skin = "blue",
                                 ),
 
                         tabItem(tabName = "MS_format",
+                                #shinyjs allows to display message from function on the app for better follow-up of calculation
                                 shinyjs::useShinyjs(),
                                 radioButtons("type_out", "File output from : ",
                                              choices =  c("Proteome Discoverer" = "PD",
@@ -263,6 +267,7 @@ ui <- dashboardPage(skin = "blue",
 
                                 tags$hr(),
 
+                                #check if files are well uploaded
                                 conditionalPanel("output.main_fileup & input.type_out == 'OpMS'",
                                                  actionButton("go1", "Submit")),
                                 conditionalPanel("output.main_fileup & output.evi_fileup & output.anno_fileup",
@@ -272,6 +277,7 @@ ui <- dashboardPage(skin = "blue",
 
                                 tags$hr(),
 
+                                #print the message from the MSstatsTMT's functions
                                 textOutput("diagP"), textOutput("diagQ"), textOutput("diagS"), textOutput("diagO"),
 
                                 tags$hr(),
@@ -321,6 +327,7 @@ ui <- dashboardPage(skin = "blue",
 
                                 tags$hr(),
 
+                                #check if data are ready (files or data from MSstats format tab)
                                 conditionalPanel(condition = "output.MSform_up | output.MSform_fileup",
                                                  actionButton("goqu", "Start quantification"),
                                                  checkboxInput("show_diag", "Hide message from quantification", FALSE)),
@@ -361,6 +368,7 @@ ui <- dashboardPage(skin = "blue",
                                                                                     selected = "BH"))
                                                               ),
 
+                                                     #check id data are ready (files or quantificattion tab output)
                                                      conditionalPanel(condition = "output.MSQuanti_up | output.MSQUANT_fileup",
                                                                       checkboxInput("y_contrast", "Choose your own comparison; if not,
                                                                               will compare all possible pairs between two conditions", FALSE),
@@ -462,6 +470,7 @@ ui <- dashboardPage(skin = "blue",
                                                           )
                                                  ),
 
+                                #same thing as before
                                 conditionalPanel(condition = "output.MSform_prof_fileup & output.MSQUANT_prof_fileup | output.MSform_up & output.MSQuanti_up",
                                                  fluidRow(conditionalPanel(condition = "input.Prof_Plot == true",
                                                                            column(3, actionButton("prof_button", "See profile plot"))
@@ -491,6 +500,8 @@ ui <- dashboardPage(skin = "blue",
 
 server <- function(input, output, session){
   ### README
+
+  #print the annotation file example
   output$annot_ex_mq <- DT::renderDataTable({
     DT::datatable(MSstatsTMT::annotation.mq,
                   caption = htmltools::tags$caption(
@@ -537,6 +548,8 @@ server <- function(input, output, session){
 
 
   ### ANNOTATION file
+
+  #change the label of the file.input according to the type of file selected
   file1A_name <- reactive({
     if (input$type_outA == "PD"){
       file1_name <- paste("Select the PSM file from Proteome Discoverer output")
@@ -555,6 +568,7 @@ server <- function(input, output, session){
   })
 
 
+  #import the file (import_list support almost every type of data file)
   mainA_data <- reactive({
     File <- input$mainA
     if (is.null(File))
@@ -582,6 +596,7 @@ server <- function(input, output, session){
   outputOptions(output, "eviA_fileup", suspendWhenHidden = FALSE)
 
 
+  #display the matrix input according your criterias and file
   Condition_matrix <- reactive({
      MAT <- matrix(rep("Norm", input$nchan), ncol = 1)
      colnames(MAT) <-"Condition"
@@ -605,6 +620,7 @@ server <- function(input, output, session){
                 rows = list(names = FALSE))
   })
 
+  #make the annotation file in the good format
   ANNOTATION <- eventReactive(input$but_anno, {
 
     if (input$type_outA == "PD"){
@@ -660,6 +676,7 @@ server <- function(input, output, session){
     ANNO
   })
 
+  #print the annotation tab
   output$ANNOTATION_out <- DT::renderDataTable({
     DT::datatable(ANNOTATION(),
                   caption = htmltools::tags$caption(
@@ -671,6 +688,7 @@ server <- function(input, output, session){
     )
   })
 
+  #download the tab
   output$save_ANNOTATION <- downloadHandler(
     filename = function() {
       paste(Sys.Date(), "_ANNOTATION", ".xlsx", sep = "")
@@ -684,6 +702,8 @@ server <- function(input, output, session){
 
 
   ### MSstats format
+
+  #change the label of the file.input according to the type of file selected
   file1_name <- reactive({
     if (input$type_out == "PD"){
       file1_name <- paste("Select the PSM file from Proteome Discoverer output")
@@ -704,6 +724,7 @@ server <- function(input, output, session){
               label= h3(file1_name()), accept = c(".xlsx", ".txt", ".csv"))
   })
 
+  #change the selectinput for the protein ID according to the type of file selected
   output$prID <- renderUI({
     if(input$type_out == "PD"){
       selectInput("prID_PD", "Select the protein ID you want for your protein name",
@@ -762,6 +783,7 @@ server <- function(input, output, session){
   })
   outputOptions(output, "anno_fileup", suspendWhenHidden = FALSE)
 
+  #this both criterias cannot be TRUE as the same time
   observe({
     if(input$missPSM){
       updateCheckboxInput(session, "miss_somePSM", value = FALSE)
@@ -774,6 +796,7 @@ server <- function(input, output, session){
   })
 
 
+  #start the calculation for MSstatsTMT format
   MSstat_data <- eventReactive(input$go1 | input$go2 | input$go3, {
     if (input$type_out == "PD"){
       withCallingHandlers({
@@ -793,6 +816,7 @@ server <- function(input, output, session){
         }
 
       },
+      #print the message from the function
       message = function(m) {shinyjs::html(id = "diagP", html = paste(m$message, "<br>", sep = ""), add = TRUE)
       }  #use java script to display message when running, without it, only display the last message
       )
@@ -817,6 +841,7 @@ server <- function(input, output, session){
         }
 
         },
+        #print the message from the function
         message = function(m) {shinyjs::html(id = "diagQ", html = paste(m$message, "<br>", sep = ""), add = TRUE)
           }  #use java script to display message when running, without it, only display the last message
         )
@@ -841,6 +866,7 @@ server <- function(input, output, session){
         }
 
       },
+      #print the message from the function
       message = function(m) {shinyjs::html(id = "diagS", html = paste(m$message, "<br>", sep = ""), add = TRUE)
       }  #use java script to display message when running, without it, only display the last message
       )
@@ -863,6 +889,7 @@ server <- function(input, output, session){
         }
 
       },
+      #print the message from the function
       message = function(m) {shinyjs::html(id = "diagO", html = paste(m$message, "<br>", sep = ""), add = TRUE)
       }  #use java script to display message when running, without it, only display the last message
       )
@@ -871,11 +898,13 @@ server <- function(input, output, session){
     MS
   }, ignoreInit = TRUE)
 
+  #check if data are ready
   output$MSform_up <- reactive({
     return(!is.null(MSstat_data()))
   })
   outputOptions(output, "MSform_up", suspendWhenHidden = FALSE)
 
+  #print the tab
   output$MSform_out <- DT::renderDataTable({
     DT::datatable(MSstat_data(),
                   caption = htmltools::tags$caption(
@@ -887,6 +916,7 @@ server <- function(input, output, session){
                   )
   })
 
+  #download the tab
   output$save_MSform <- downloadHandler(
     filename = function() {
       paste(Sys.Date(), "_MSstats_format", ".csv", sep = "")
@@ -898,6 +928,8 @@ server <- function(input, output, session){
 
 
   ### QUANTIFICATION
+
+  #import your own file or use the data calculated by the app
   quant_data <- reactive({
     if (input$imp){
       File <- input$forqu
@@ -919,6 +951,7 @@ server <- function(input, output, session){
     })
   outputOptions(output, "MSform_fileup", suspendWhenHidden = FALSE)
 
+  #start quantification
   quant_final <- eventReactive(input$goqu, {
     mQuant <- input$maxQu
     if (is.na(mQuant)){
@@ -933,7 +966,7 @@ server <- function(input, output, session){
       },
     message = function(m) {
       m_ <- m$message
-      if(str_length(m_) > 120)
+      if(str_length(m_) > 120)   #some message are very long so not display the whole message if it's the case
         m_ <- paste(str_sub(m_, 1, 120), "...", sep = "")
       shinyjs::html(id = "diagQuant", html = paste(m_, "<br>", sep = ""), add = FALSE)
     }  #use java script to display message when running, without it, only display the last message
@@ -942,11 +975,13 @@ server <- function(input, output, session){
   }, ignoreInit = TRUE)
 
 
+  #check if data are ready
   output$MSQuanti_up <- reactive({
     return(!is.null(quant_final()))
   })
   outputOptions(output, "MSQuanti_up", suspendWhenHidden = FALSE)
 
+  #print the tab
   output$Quanti_output <- DT::renderDataTable({
     DT::datatable(quant_final(),
                   caption = htmltools::tags$caption(
@@ -958,6 +993,7 @@ server <- function(input, output, session){
     )
   })
 
+  #download the tab
   output$save_MSQuanti <- downloadHandler(
     filename = function() {
       paste(Sys.Date(), "_MSstats_results", ".csv", sep = "")
@@ -969,6 +1005,8 @@ server <- function(input, output, session){
 
 
   ### Group comparison
+
+  #import your own file or the results from the app
   compar_data <- reactive({
     if (input$imp_g){
       File <- input$forgrp
@@ -991,6 +1029,7 @@ server <- function(input, output, session){
   outputOptions(output, "MSQUANT_fileup", suspendWhenHidden = FALSE)
 
 
+  #print the matrix input for comparison according to the data
   contr_mat <- reactive({
     if (is.null(compar_data())){
       MAT <- NULL
@@ -1007,6 +1046,7 @@ server <- function(input, output, session){
                 rows = list(names = TRUE, editableNames = TRUE))
   })
 
+  #if more than one batch, allow to choose specific batch
   output$one_batch <- renderUI({
     if (length(unique(compar_data()$Mixture)) > 1){
       checkboxInput("o_batch", "Perfom group comparison on one batch ?", FALSE)
@@ -1016,6 +1056,7 @@ server <- function(input, output, session){
     }
   })
 
+  #if more than one batch and want to see specific one, print the selectinput according tot the data
   output$sel_batch <- renderUI({
     if (length(unique(compar_data()$Mixture)) > 1){
       if (input$o_batch){
@@ -1031,11 +1072,12 @@ server <- function(input, output, session){
     }
   })
 
+  #start the Group comparison
   GrC_final <- eventReactive(input$gogrco, {
     compar_data2 <- compar_data()
     if (length(unique(compar_data()$Mixture)) > 1  & input$y_contrast){
       if (input$o_batch){
-        compar_data2 <- compar_data2[which(compar_data2$Mixture == input$batch),]
+        compar_data2 <- compar_data2[which(compar_data2$Mixture == input$batch),]  #filter the batch selected if so
       }
     }
     withCallingHandlers({
@@ -1059,11 +1101,13 @@ server <- function(input, output, session){
 
   }, ignoreInit = TRUE)
 
+  #check if data are ready
   output$GrC_up <- reactive({
     return(!is.null(GrC_final()))
   })
   outputOptions(output, "GrC_up", suspendWhenHidden = FALSE)
 
+  #print the tab
   output$GrC_output <- DT::renderDataTable({
     DT::datatable(GrC_final(),
                   caption = htmltools::tags$caption(
@@ -1075,6 +1119,7 @@ server <- function(input, output, session){
     )
   })
 
+  #download the tab
   output$save_GrC <- downloadHandler(
     filename = function() {
       paste(Sys.Date(), "_GrpCompare_results", ".csv", sep = "")
@@ -1085,6 +1130,8 @@ server <- function(input, output, session){
   )
 
   ## VOLCANO
+
+  #import your own file or use results from the app
   VOLC_data <- reactive({
     if (input$imp_volc){
       File <- input$forVOLC
@@ -1104,6 +1151,7 @@ server <- function(input, output, session){
   })
   outputOptions(output, "volc_fileup", suspendWhenHidden = FALSE)
 
+  #update value of argument if some are selected to 'satisfy' argument of the function
   observe({
     if(input$pv_corr){
       updateSelectInput(session, "pv_adjmeth", label = "What was your correction method ?")
@@ -1123,10 +1171,12 @@ server <- function(input, output, session){
     }
   })
 
+  #update the selectInput for condition according to the data
   output$compar_ui <- renderUI({
     selectInput("compar_val", "Choose the two condition you want to compare", choices = unique(VOLC_data()$Label))
   })
 
+  #plot the volcano
   Volcano_Plot <- reactive({
     plo_volc(VOLC_data(), lim_pv = 10**-input$pv_thr, lim_dif = input$FC_thr, correction = input$pv_corr, perf_corr = input$pv_corrY,
              comp = input$compar_val, curve = input$curv, curvature = input$curv_val, tit = input$volc_title,
@@ -1134,6 +1184,7 @@ server <- function(input, output, session){
 
   })
 
+  #use a button to display the plot
   volc_plot <- reactiveValues(
     ch = NULL
   )
@@ -1148,6 +1199,7 @@ server <- function(input, output, session){
     volc_plot$ch
   })
 
+  ##download the plot
   output$down_volc <- downloadHandler(
     filename = function() {
       paste("Volcano_plot", Sys.Date(), ".png", sep = "")
@@ -1161,6 +1213,7 @@ server <- function(input, output, session){
 
   ### PROFILE PLOT
 
+  #import your own or use results from the app (MSstatsTMT Format)
   Prof_MS_data <- reactive({
     if (input$imp_P){
       File <- input$forP_pep
@@ -1180,6 +1233,7 @@ server <- function(input, output, session){
   })
   outputOptions(output, "MSform_prof_fileup", suspendWhenHidden = FALSE)
 
+  #import your own file or use results from the app (quantification)
   Prof_qu_data <- reactive({
     if (input$imp_P){
       File <- input$forP_pro
@@ -1201,6 +1255,7 @@ server <- function(input, output, session){
 
 
 
+  #update the proteins you can selected according to the data
   observe({
     if (is.null(Prof_MS_data()) | is_empty(Prof_MS_data())){
       updateSelectizeInput(session, "PROT", choices = unique(Prof_qu_data()$Protein))
@@ -1211,6 +1266,7 @@ server <- function(input, output, session){
   })
 
 
+  #plot the protein profile or QC plot, also use a button to display the plots
   Profile_Plot <- reactive({
     if (input$Prof_Plot){
       PlotsTMT_profile(Prof_MS_data(), Prof_qu_data(),
@@ -1263,6 +1319,7 @@ server <- function(input, output, session){
   })
 
 
+  #download the plots
   output$down_prof <- downloadHandler(
     filename = function() {
       paste("profile_plot_", Sys.Date(), ".png", sep = "")
