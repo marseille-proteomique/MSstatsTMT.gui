@@ -45,29 +45,33 @@ plo_volc <- function(data, lim_pv = 0.05, lim_dif = c(-1,1),
                      correction = FALSE, perf_corr = FALSE, your_corr = "none",
                      comp = "0.125-Norm", curve = FALSE, curvature = 0.1, tit = "mqpar25 MSstatsTMT",
                      ytit = "-log10(p-value)"){
-  data_ <- data[,c(1,2,3,6,7)]
+
+  data_ <- data[,c(1,2,3,6,7)] #select the column of interest (data need to be the MSstatsTMT output)
+  #if correction, only keep the adjusted p-values
   if(!correction){
     data_ <- data_[,-ncol(data_)]
   }
   else{
     data_ <- data_[,-ncol(data_)+1]
   }
-  data_ <- data_[which(data_$Label == comp), -2]
-  n <- nrow(data_)
+
+  data_ <- data_[which(data_$Label == comp), -2] #take the condition of interest
+  n <- nrow(data_)                               #get the number of missing values
   data_ <- na.omit(data_)
   n <- n - nrow(data_)
 
   colnames(data_)[3] <- "pv"
   if(perf_corr){
-    data_$pv <- p.adjust(data_$pv, your_corr)
+    data_$pv <- p.adjust(data_$pv, your_corr)    #adjust the p-values if perf_corr
   }
   data_$pv <- -log10(data_$pv)
 
-  data_$reg <- rep("no diff", nrow(data_))
+  data_$reg <- rep("no diff", nrow(data_))       #create column for the color of the points in the volcano plot
 
   data_$reg[which(data_$log2FC <= lim_dif[1])] <- "diff neg"
   data_$reg[which(data_$log2FC >= lim_dif[2])] <- "diff pos"
 
+  #base plot
   g <- ggplot(data_, aes(log2FC, pv)) + geom_point(aes(color = reg)) +
     scale_color_manual(values = c("no diff" = "black",
                                   "diff neg" = "red",
@@ -76,6 +80,7 @@ plo_volc <- function(data, lim_pv = 0.05, lim_dif = c(-1,1),
     geom_vline(xintercept = lim_dif[2], linetype = "dashed") +
     geom_hline(yintercept = -log10(lim_pv), linetype = "dashed")
 
+  #add a curve to the plot according to the thresholds
   if(curve){
     volc <- data.frame(x=linspace(-range(data_$log2FC)[2] -1, range(data_$log2FC)[2] +1, 500), y=1:500)
     volc$y[which(volc$x <= lim_dif[1])] <- curvature/abs(volc$x[which(volc$x <= lim_dif[1])] - lim_dif[1]) + -log10(lim_pv)
@@ -88,6 +93,7 @@ plo_volc <- function(data, lim_pv = 0.05, lim_dif = c(-1,1),
     data_$z[which(data_$log2FC >= lim_dif[2])] <- curvature/abs(data_$log2FC[which(data_$log2FC >= lim_dif[2])] - lim_dif[2]) + -log10(lim_pv)
     data_$z[which(data_$log2FC > lim_dif[1] & data_$log2FC < lim_dif[2])] <- NA
 
+    #hightlight the proteins which are above the curve
     g <- g + geom_line(aes(x,y), volc) +
       gghighlight(pv >= data_$z,
                   label_key = Protein,
@@ -101,6 +107,7 @@ plo_volc <- function(data, lim_pv = 0.05, lim_dif = c(-1,1),
   }
 
   else{
+    #hightlight the proteins which are above the thresholds
     g <- g + gghighlight(pv >= -log10(lim_pv) & reg != "no diff",
                          label_key = Protein,
                          use_direct_label = TRUE,
@@ -111,6 +118,7 @@ plo_volc <- function(data, lim_pv = 0.05, lim_dif = c(-1,1),
                   "\nremoved", n, "proteins with missing data")
   }
 
+  #set the appearance of the plot
   g <- g + xlim(-max(abs(data_$log2FC)) - 0.5, max(abs(data_$log2FC)) + 0.5) +
     ylim(0, max(data_$pv) + 1) +
     labs(title = tit, x = paste("log2FC", comp), y = ytit,
